@@ -132,7 +132,7 @@ function createMacroBadgeGroup(analysis, enabled) {
 
         badge.appendChild(createMacroBadgeSegment(
             total,
-            " MACROS",
+            ` macro${total === 1 ? "" : "s"}`,
             `${formatCount(total)} macro invocation${total === 1 ? "" : "s"} in this field`
                 + (comments ? `, ${formatCount(comments)} comment${comments === 1 ? "" : "s"}` : "")
                 + (enabled ? "" : " (not evaluated)"),
@@ -141,7 +141,7 @@ function createMacroBadgeGroup(analysis, enabled) {
         if (errors > 0) {
             appendMacroBadgeSegment(badge, createMacroBadgeSegment(
                 errors,
-                " ERR",
+                " err",
                 `${formatCount(errors)} error${errors === 1 ? "" : "s"}: these macros cannot resolve as written.`,
             ));
         }
@@ -149,7 +149,7 @@ function createMacroBadgeGroup(analysis, enabled) {
         if (warnings > 0) {
             appendMacroBadgeSegment(badge, createMacroBadgeSegment(
                 warnings,
-                " WARN",
+                " warn",
                 `${formatCount(warnings)} warning${warnings === 1 ? "" : "s"}: these macros resolve only in a specific engine, field, or extension.`,
             ));
         }
@@ -711,7 +711,7 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
     if (!inOrder) {
         badgesEl.appendChild(makeBadge("not in order", "badge-orphan"));
     } else if (!enabled) {
-        badgesEl.appendChild(makeBadge("disabled", "badge-disabled"));
+        badgesEl.appendChild(makeBadge("off", "badge-disabled"));
     }
 
     // macro badge
