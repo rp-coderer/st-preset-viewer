@@ -1273,8 +1273,7 @@ function displayPrompts() {
 function updateStats() {
     const total = promptOrder.length;
     const enabledCount = promptOrder.filter(p => p.enabled).length;
-    const fileLabel = fileNameLabel.textContent || "preset";
-    const parts = [`${fileLabel} — ${total} prompts, ${enabledCount} enabled`];
+    const parts = [`${total} prompts, ${enabledCount} enabled`];
 
     if (orphanPrompts.length > 0) {
         parts.push(`${orphanPrompts.length} not in order`);
