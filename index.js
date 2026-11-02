@@ -670,21 +670,37 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
 
     const badgesEl = document.createElement("span");
     badgesEl.className = "badges";
-    // "system" is the default role in ST — showing it on every card is just noise.
-    if (prompt.role && prompt.role !== "system") {
-        badgesEl.appendChild(makeBadge(prompt.role, `badge-role-${prompt.role}`));
-    }
+
+    // Disabled badge
     if (!inOrder) {
         badgesEl.appendChild(makeBadge("not in order", "badge-orphan"));
     } else if (!enabled) {
         badgesEl.appendChild(makeBadge("disabled", "badge-disabled"));
     }
-    if (prompt.marker) badgesEl.appendChild(makeBadge("marker", "badge-marker"));
-    if (isDefaultPromptId(identifier)) badgesEl.appendChild(makeBadge("default", "badge-default"));
+
+    // macro badge
+    badgesEl.appendChild(createMacroBadgeGroup(analysis, enabled && inOrder));
+
+    // marker badge
+    if (prompt.marker) {
+        badgesEl.appendChild(makeBadge("marker", "badge-marker"));
+    }
+
+    // default badge
+    if (isDefaultPromptId(identifier)) {
+        badgesEl.appendChild(makeBadge("default", "badge-default"));
+    }
+
+    // injection badge
     if (prompt.injection_position > 0) {
         badgesEl.appendChild(makeBadge(`in-chat @${prompt.injection_depth}`, "badge-injected"));
     }
-    badgesEl.appendChild(createMacroBadgeGroup(analysis, enabled && inOrder));
+
+    // role badge
+    // "system" is the default role in ST — showing it on every card is just noise.
+    if (prompt.role && prompt.role !== "system") {
+        badgesEl.appendChild(makeBadge(prompt.role, `badge-role-${prompt.role}`));
+    }
 
     elemSummary.append(nameEl, badgesEl);
     elemDetails.appendChild(elemSummary);
