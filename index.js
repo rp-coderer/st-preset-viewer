@@ -92,6 +92,34 @@ function plural(value, singular, pluralForm = `${singular}s`) {
     return value === 1 ? singular : pluralForm;
 }
 
+// One compact pill for the macro counts: `74 {/} | 6 E | 3 W`.
+// The words live in the per-segment titles; the pill as a whole takes the
+// colour of the worst thing in it (error > warning > default).
+function createMacroBadgeSegment(count, glyph, title) {
+    const seg = document.createElement("span");
+    seg.className = "badge-seg";
+
+    const value = document.createElement("span");
+    value.className = "badge-seg-value";
+    value.textContent = formatCount(count);
+
+    const icon = document.createElement("span");
+    icon.className = "badge-seg-glyph";
+    icon.textContent = glyph;
+
+    seg.append(value, icon);
+    seg.title = title;
+    return seg;
+}
+
+function appendMacroBadgeSegment(badge, segment) {
+    const sep = document.createElement("span");
+    sep.className = "badge-sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = " • ";
+    badge.append(sep, segment);
+}
+
 function createMacroBadgeGroup(analysis, enabled) {
     const frag = document.createDocumentFragment();
     if (!analysis) return frag;
@@ -99,36 +127,44 @@ function createMacroBadgeGroup(analysis, enabled) {
     const { total, comments, errors, warnings } = analysis.stats;
 
     if (total > 0) {
-        const badge = makeBadge(
-            `${formatCount(total)} ${plural(total, "macro")}`,
-            "badge-macro",
-        );
-        badge.title = `${formatCount(total)} macro invocation${total === 1 ? "" : "s"} in this field`
-            + (comments ? `, ${formatCount(comments)} comment${comments === 1 ? "" : "s"}` : "")
-            + (enabled ? "" : " (not evaluated)");
+        const badge = document.createElement("span");
+        badge.className = "badge badge-macro-count";
+
+        badge.appendChild(createMacroBadgeSegment(
+            total,
+            " MACROS",
+            `${formatCount(total)} macro invocation${total === 1 ? "" : "s"} in this field`
+                + (comments ? `, ${formatCount(comments)} comment${comments === 1 ? "" : "s"}` : "")
+                + (enabled ? "" : " (not evaluated)"),
+        ));
+
+        if (errors > 0) {
+            appendMacroBadgeSegment(badge, createMacroBadgeSegment(
+                errors,
+                " ERR",
+                `${formatCount(errors)} error${errors === 1 ? "" : "s"}: these macros cannot resolve as written.`,
+            ));
+        }
+
+        if (warnings > 0) {
+            appendMacroBadgeSegment(badge, createMacroBadgeSegment(
+                warnings,
+                " WARN",
+                `${formatCount(warnings)} warning${warnings === 1 ? "" : "s"}: these macros resolve only in a specific engine, field, or extension.`,
+            ));
+        }
+
+        if (errors > 0) badge.classList.add("badge-error");
+        else if (warnings > 0) badge.classList.add("badge-warn");
+
         if (!enabled) badge.classList.add("badge-macro-muted");
+
         frag.appendChild(badge);
     }
 
     if (!analysis.expanded) {
         const badge = makeBadge("not expanded", "badge-literal");
         badge.title = "SillyTavern does not macro-expand this field.";
-        frag.appendChild(badge);
-    }
-
-    if (errors > 0) {
-        const badge = makeBadge(
-            `${formatCount(errors)} ${plural(errors, "error")}`,
-            "badge-error",
-        );
-        badge.title = "These macros cannot resolve as written.";
-        frag.appendChild(badge);
-    } else if (warnings > 0) {
-        const badge = makeBadge(
-            `${formatCount(warnings)} ${plural(warnings, "warning")}`,
-            "badge-warn",
-        );
-        badge.title = "These macros resolve only in a specific engine, field, or extension.";
         frag.appendChild(badge);
     }
 
