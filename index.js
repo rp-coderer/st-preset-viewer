@@ -92,6 +92,34 @@ function plural(value, singular, pluralForm = `${singular}s`) {
     return value === 1 ? singular : pluralForm;
 }
 
+// One compact pill for the macro counts: `74 {/} | 6 E | 3 W`.
+// The words live in the per-segment titles; the pill as a whole takes the
+// colour of the worst thing in it (error > warning > default).
+function createMacroBadgeSegment(count, glyph, title) {
+    const seg = document.createElement("span");
+    seg.className = "badge-seg";
+
+    const value = document.createElement("span");
+    value.className = "badge-seg-value";
+    value.textContent = formatCount(count);
+
+    const icon = document.createElement("span");
+    icon.className = "badge-seg-glyph";
+    icon.textContent = glyph;
+
+    seg.append(value, icon);
+    seg.title = title;
+    return seg;
+}
+
+function appendMacroBadgeSegment(badge, segment) {
+    const sep = document.createElement("span");
+    sep.className = "badge-sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = " • ";
+    badge.append(sep, segment);
+}
+
 function createMacroBadgeGroup(analysis, enabled) {
     const frag = document.createDocumentFragment();
     if (!analysis) return frag;
@@ -99,36 +127,44 @@ function createMacroBadgeGroup(analysis, enabled) {
     const { total, comments, errors, warnings } = analysis.stats;
 
     if (total > 0) {
-        const badge = makeBadge(
-            `${formatCount(total)} ${plural(total, "macro")}`,
-            "badge-macro",
-        );
-        badge.title = `${formatCount(total)} macro invocation${total === 1 ? "" : "s"} in this field`
-            + (comments ? `, ${formatCount(comments)} comment${comments === 1 ? "" : "s"}` : "")
-            + (enabled ? "" : " (not evaluated)");
+        const badge = document.createElement("span");
+        badge.className = "badge badge-macro-count";
+
+        badge.appendChild(createMacroBadgeSegment(
+            total,
+            ` macro${total === 1 ? "" : "s"}`,
+            `${formatCount(total)} macro invocation${total === 1 ? "" : "s"} in this field`
+                + (comments ? `, ${formatCount(comments)} comment${comments === 1 ? "" : "s"}` : "")
+                + (enabled ? "" : " (not evaluated)"),
+        ));
+
+        if (errors > 0) {
+            appendMacroBadgeSegment(badge, createMacroBadgeSegment(
+                errors,
+                " err",
+                `${formatCount(errors)} error${errors === 1 ? "" : "s"}: these macros cannot resolve as written.`,
+            ));
+        }
+
+        if (warnings > 0) {
+            appendMacroBadgeSegment(badge, createMacroBadgeSegment(
+                warnings,
+                " warn",
+                `${formatCount(warnings)} warning${warnings === 1 ? "" : "s"}: these macros resolve only in a specific engine, field, or extension.`,
+            ));
+        }
+
+        if (errors > 0) badge.classList.add("badge-error");
+        else if (warnings > 0) badge.classList.add("badge-warn");
+
         if (!enabled) badge.classList.add("badge-macro-muted");
+
         frag.appendChild(badge);
     }
 
     if (!analysis.expanded) {
         const badge = makeBadge("not expanded", "badge-literal");
         badge.title = "SillyTavern does not macro-expand this field.";
-        frag.appendChild(badge);
-    }
-
-    if (errors > 0) {
-        const badge = makeBadge(
-            `${formatCount(errors)} ${plural(errors, "error")}`,
-            "badge-error",
-        );
-        badge.title = "These macros cannot resolve as written.";
-        frag.appendChild(badge);
-    } else if (warnings > 0) {
-        const badge = makeBadge(
-            `${formatCount(warnings)} ${plural(warnings, "warning")}`,
-            "badge-warn",
-        );
-        badge.title = "These macros resolve only in a specific engine, field, or extension.";
         frag.appendChild(badge);
     }
 
@@ -670,21 +706,37 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
 
     const badgesEl = document.createElement("span");
     badgesEl.className = "badges";
+
+    // Disabled badge
+    if (!inOrder) {
+        badgesEl.appendChild(makeBadge("not in order", "badge-orphan"));
+    } else if (!enabled) {
+        badgesEl.appendChild(makeBadge("off", "badge-disabled"));
+    }
+
+    // macro badge
+    badgesEl.appendChild(createMacroBadgeGroup(analysis, enabled && inOrder));
+
+    // marker badge
+    if (prompt.marker) {
+        badgesEl.appendChild(makeBadge("marker", "badge-marker"));
+    }
+
+    // default badge
+    if (isDefaultPromptId(identifier)) {
+        badgesEl.appendChild(makeBadge("default", "badge-default"));
+    }
+
+    // injection badge
+    if (prompt.injection_position > 0) {
+        badgesEl.appendChild(makeBadge(`in-chat @${prompt.injection_depth}`, "badge-injected"));
+    }
+
+    // role badge
     // "system" is the default role in ST — showing it on every card is just noise.
     if (prompt.role && prompt.role !== "system") {
         badgesEl.appendChild(makeBadge(prompt.role, `badge-role-${prompt.role}`));
     }
-    if (!inOrder) {
-        badgesEl.appendChild(makeBadge("not in order", "badge-orphan"));
-    } else if (!enabled) {
-        badgesEl.appendChild(makeBadge("disabled", "badge-disabled"));
-    }
-    if (prompt.marker) badgesEl.appendChild(makeBadge("marker", "badge-marker"));
-    if (isDefaultPromptId(identifier)) badgesEl.appendChild(makeBadge("default", "badge-default"));
-    if (prompt.injection_position > 0) {
-        badgesEl.appendChild(makeBadge(`in-chat @${prompt.injection_depth}`, "badge-injected"));
-    }
-    badgesEl.appendChild(createMacroBadgeGroup(analysis, enabled && inOrder));
 
     elemSummary.append(nameEl, badgesEl);
     elemDetails.appendChild(elemSummary);
@@ -696,7 +748,10 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
     toolsEl.className = "prompt-tools";
 
     const countEl = document.createElement("span");
-    countEl.textContent = `${charCount.toLocaleString()} chars - id: ${identifier}`;
+    countEl.textContent = `${charCount.toLocaleString()} chars`;
+
+    const idEl = document.createElement("span");
+    idEl.textContent = `id: ${identifier}`;
 
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
@@ -713,8 +768,6 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
         setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
     });
 
-    toolsEl.append(countEl, copyBtn);
-
     const macroPanel = createMacroPanel(analysis, {
         enabled,
         inOrder,
@@ -726,18 +779,25 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
         expanded: analysis?.expanded !== false,
     });
 
+    toolsEl.append(countEl, idEl, copyBtn);
+    bodyEl.append(toolsEl);
+
     // ST-supplied content is not editable and usually not even stored:
     // show an indication instead of the tools / preview area.
     if (isMarkerPromptId(identifier)) {
+        countEl.style.visibility = "hidden";
+        copyBtn.style.visibility = "hidden";
+        
         const suppliedNote = document.createElement("p");
         suppliedNote.className = "macro-note";
+        
         const source = ST_SUPPLIED_SOURCES[identifier] ?? "runtime data (extension prompt)";
         suppliedNote.textContent =
             `Content is supplied by ST at runtime (${source}) \u2014 nothing stored in the preset to show.`;
         bodyEl.append(suppliedNote);
     } else {
-        bodyEl.append(toolsEl);
         if (macroPanel) bodyEl.append(macroPanel);
+        
         bodyEl.append(elemPromptContent);
     }
     elemDetails.appendChild(bodyEl);
@@ -1213,8 +1273,7 @@ function displayPrompts() {
 function updateStats() {
     const total = promptOrder.length;
     const enabledCount = promptOrder.filter(p => p.enabled).length;
-    const fileLabel = fileNameLabel.textContent || "preset";
-    const parts = [`${fileLabel} — ${total} prompts, ${enabledCount} enabled`];
+    const parts = [`${total} prompts, ${enabledCount} enabled`];
 
     if (orphanPrompts.length > 0) {
         parts.push(`${orphanPrompts.length} not in order`);
