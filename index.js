@@ -748,7 +748,10 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
     toolsEl.className = "prompt-tools";
 
     const countEl = document.createElement("span");
-    countEl.textContent = `${charCount.toLocaleString()} chars - id: ${identifier}`;
+    countEl.textContent = `${charCount.toLocaleString()} chars`;
+
+    const idEl = document.createElement("span");
+    idEl.textContent = `id: ${identifier}`;
 
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
@@ -765,8 +768,6 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
         setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
     });
 
-    toolsEl.append(countEl, copyBtn);
-
     const macroPanel = createMacroPanel(analysis, {
         enabled,
         inOrder,
@@ -778,18 +779,25 @@ function createPromptSections(identifier, enabledOverride, options = {}) {
         expanded: analysis?.expanded !== false,
     });
 
+    toolsEl.append(countEl, idEl, copyBtn);
+    bodyEl.append(toolsEl);
+
     // ST-supplied content is not editable and usually not even stored:
     // show an indication instead of the tools / preview area.
     if (isMarkerPromptId(identifier)) {
+        countEl.style.visibility = "hidden";
+        copyBtn.style.visibility = "hidden";
+        
         const suppliedNote = document.createElement("p");
         suppliedNote.className = "macro-note";
+        
         const source = ST_SUPPLIED_SOURCES[identifier] ?? "runtime data (extension prompt)";
         suppliedNote.textContent =
             `Content is supplied by ST at runtime (${source}) \u2014 nothing stored in the preset to show.`;
         bodyEl.append(suppliedNote);
     } else {
-        bodyEl.append(toolsEl);
         if (macroPanel) bodyEl.append(macroPanel);
+        
         bodyEl.append(elemPromptContent);
     }
     elemDetails.appendChild(bodyEl);
